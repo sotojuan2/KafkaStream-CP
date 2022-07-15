@@ -1,2 +1,5 @@
+com/example/colour/RandmonName.class
 com/example/colour/FavouriteColourApp.class
 com/example/colour/CustomRocksDBConfig.class
+com/example/colour/customRocksDBConfigOriginal.class
+com/example/colour/compactionStyle.class

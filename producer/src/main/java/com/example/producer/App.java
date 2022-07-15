@@ -50,7 +50,8 @@ public class App
         int index = new Random().nextInt(names.size());
         String anynames = names.get(index);
         System.out.println("Your random colour is: " + anynames + " now!");
-        return anynames;
+        int index2 = new Random().nextInt(names.size());
+        return anynames+System.currentTimeMillis()+index2;
     }
 
     public static void main( String[] args )

@@ -1,5 +1,10 @@
 package com.example.colour;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -29,21 +34,65 @@ public final class FavouriteColourApp {
     /**
      * Says hello to the world.
      * @param args The arguments of the program.
+     * @throws IOException
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         System.out.println("Hello World!");
 
 
-        Properties config = new Properties();
-        config.put(StreamsConfig.APPLICATION_ID_CONFIG, "favourite-colour-java");
-        config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1:19092");
+        final Properties config = loadConfig(args[0]);
+
+
+        //Properties config = new Properties();
+        //config.put(StreamsConfig.APPLICATION_ID_CONFIG, "favourite-colour-java");
+        //config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1:19092");
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-        config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, CustomRocksDBConfig.class);
+        //config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, CustomRocksDBConfig.class);
+        System.out.println("La clase es "+config.getProperty("rocksdb"));
+        String favouritecolourinput = config.getProperty("favourite-colour-input", "favourite-colour-input");
+        String userkeysandcolours= config.getProperty("user-keys-and-colours", "user-keys-and-colours");
+        String  favouritecolouroutput= config.getProperty("favourite-colour-output", "favourite-colour-output");
+        
+        System.out.println("path de rocksdb: "+System.getenv("ROCKSDB"));
+        switch (config.getProperty("rocksdb")) {
+ 
+            // Case 1
+            case "MaxWithDirect":
+     
+                // Print statement corresponding case
+                System.out.print("rocksDB - MaxWithDirect");
+                config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, customRocksDBConfigOriginal.class);
+     
+                // break keyword terminates the
+                // code execution here itself
+                break;
+     
+            // Case 2
+            case "OnlyMax":
+     
+                // Print statement corresponding case
+                System.out.print("rocksDB - OnlyMax");
+                config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, CustomRocksDBConfig.class);
+                break;
+            // Case 3
+            case "ECI2":
+     
+                // Print statement corresponding case
+                System.out.print("rocksDB - ECI2");
+                config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, customRocksDBConfigECI2.class);
+                break;
+            default:
+                System.out.print("rocksDB - Original");
+                config.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, customRocksDBConfigOriginal.class);
+        }
+        
+        // JSOTO rack.aware.assignment.tags
+        //config.put(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG);
         config.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kstream");
         ///metrics.recording.level
-        config.put("metrics.recording.level", "DEBUG");
+        config.put("metrics.recording.level", config.getProperty("metrics.recording.level", "INFO"));
 
         // we disable the cache to demonstrate all the "steps" involved in the transformation - not recommended in prod
         //config.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, "0");
@@ -52,7 +101,7 @@ public final class FavouriteColourApp {
 
         StreamsBuilder builder = new StreamsBuilder();
         // Step 1: We create the topic of users keys to colours
-        KStream<String, String> textLines = builder.stream("favourite-colour-input");
+        KStream<String, String> textLines = builder.stream(favouritecolourinput);
 
         KStream<String, String> usersAndColours = textLines
                 // 1 - we ensure that a comma is here as we will split on it
@@ -64,14 +113,15 @@ public final class FavouriteColourApp {
                 // 4 - we filter undesired colours (could be a data sanitization step
                 //.filter((user, colour) -> Arrays.asList("green", "blue", "red").contains(colour));
 
-        usersAndColours.to("user-keys-and-colours");
+        usersAndColours.to(userkeysandcolours);
 
         Serde<String> stringSerde = Serdes.String();
         Serde<Long> longSerde = Serdes.Long();
 
 
         // step 2 - we read that topic as a KTable so that updates are read correctly
-        KTable<String, String> usersAndColoursTable = builder.table("user-keys-and-colours");
+        
+        KTable<String, String> usersAndColoursTable = builder.table(userkeysandcolours);
 
         // step 3 - we count the occurences of colours
         KTable<String, Long> favouriteColours = usersAndColoursTable
@@ -82,7 +132,7 @@ public final class FavouriteColourApp {
                         .withValueSerde(longSerde));
 
         // 6 - we output the results to a Kafka Topic - don't forget the serializers
-        favouriteColours.toStream().to("favourite-colour-output", Produced.with(Serdes.String(),Serdes.Long()));
+        favouriteColours.toStream().to(favouritecolouroutput, Produced.with(Serdes.String(),Serdes.Long()));
         Topology topology = builder.build();
         KafkaStreams streams = new KafkaStreams(topology, config);
         // only do this in dev - not in prod
@@ -97,4 +147,17 @@ public final class FavouriteColourApp {
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
 
     }
+
+
+    public static Properties loadConfig( String configFile) throws IOException {
+        if (!Files.exists(Paths.get(configFile))) {
+          throw new IOException(configFile + " not found.");
+        }
+        final Properties cfg = new Properties();
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+          cfg.load(inputStream);
+        }
+        return cfg;
+      }
+      
 }

@@ -1,0 +1,4 @@
+# Rocksdbclass Original, MaxWithDirect, OnlyMax
+rocksdb=OnlyMax
+maxOpenFiles=1
+CacheIndexAndFilterBlocks=true
