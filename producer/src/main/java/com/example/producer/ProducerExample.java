@@ -135,7 +135,7 @@ private static  String getColour(){
           }
       });
       try {
-        Thread.sleep(90L);
+        Thread.sleep(1L);
       } catch (InterruptedException e1) {
         // TODO Auto-generated catch block
         e1.printStackTrace();

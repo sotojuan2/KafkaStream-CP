@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-slim
+FROM openjdk:11-jdk-slim
 ARG CONF=/test/config.txt
 EXPOSE 9012
 RUN apt-get update ; \

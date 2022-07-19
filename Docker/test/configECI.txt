@@ -11,6 +11,7 @@ session.timeout.ms=45000
 
 # Best practice for Kafka producer to prevent data loss
 acks=all
+num.stream.threads=3
 
 # Other configuration default value favourite-colour-java
 application.id=favourite-colour-java-eci
